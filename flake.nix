@@ -124,10 +124,42 @@
     ${"
       set -eu
 
-      export PATH=node_modules/.bin:\$PATH
-      ${pkgs.which}/bin/which vite 2> /dev/null ||         (echo vite is not a dependency of the project, maybe run:
-         echo '  npm install --save-dev vite'
-          exit 1)
+      export PATH=${let
+        npmlock2nix = import npmlock2nix-repo {
+          inherit pkgs;
+        };
+        pkgs = import "${nixpkgs}" {
+        config.permittedInsecurePackages = [];
+        inherit system;
+      };
+      in
+      npmlock2nix.v2.node_modules
+        {
+          src = (let
+    lib = pkgs.lib;
+    lastSafe = list :
+      if lib.lists.length list == 0
+        then null
+        else lib.lists.last list;
+  in
+  builtins.path
+    {
+      path = ./.;
+      name = "source";
+      filter = path: type:
+        let
+          fileName = lastSafe (lib.strings.splitString "/" path);
+        in
+         fileName != "flake.nix" &&
+         fileName != "garn.ts";
+    });
+          nodejs = pkgs.nodejs-18_x;
+        }}/bin:\$PATH
+      if ! ${pkgs.which}/bin/which vite 2> /dev/null; then
+        echo 'vite is not a dependency of the project, maybe run:'
+        echo '  npm install --save-dev vite'
+        exit 1
+      fi
       vite build --outDir \$out
     "}
   ";
@@ -166,6 +198,114 @@
           };
         in
         {
+          "viteVanilla/dev" = {
+            "type" = "app";
+            "program" = "${let
+        dev = (pkgs.mkShell {}).overrideAttrs (finalAttrs: previousAttrs: {
+          nativeBuildInputs =
+            previousAttrs.nativeBuildInputs
+            ++
+            [pkgs.nodejs-18_x];
+        });
+        shell = "
+      export PATH=${let
+        npmlock2nix = import npmlock2nix-repo {
+          inherit pkgs;
+        };
+        pkgs = import "${nixpkgs}" {
+        config.permittedInsecurePackages = [];
+        inherit system;
+      };
+      in
+      npmlock2nix.v2.node_modules
+        {
+          src = (let
+    lib = pkgs.lib;
+    lastSafe = list :
+      if lib.lists.length list == 0
+        then null
+        else lib.lists.last list;
+  in
+  builtins.path
+    {
+      path = ./.;
+      name = "source";
+      filter = path: type:
+        let
+          fileName = lastSafe (lib.strings.splitString "/" path);
+        in
+         fileName != "flake.nix" &&
+         fileName != "garn.ts";
+    });
+          nodejs = pkgs.nodejs-18_x;
+        }}/bin:\$PATH
+      vite
+    ";
+        buildPath = pkgs.runCommand "build-inputs-path" {
+          inherit (dev) buildInputs nativeBuildInputs;
+        } "echo $PATH > $out";
+      in
+      pkgs.writeScript "shell-env"  ''
+        #!${pkgs.bash}/bin/bash
+        export PATH=$(cat ${buildPath}):$PATH
+        ${dev.shellHook}
+        ${shell} "$@"
+      ''}";
+          };
+          "viteVanilla/preview" = {
+            "type" = "app";
+            "program" = "${let
+        dev = (pkgs.mkShell {}).overrideAttrs (finalAttrs: previousAttrs: {
+          nativeBuildInputs =
+            previousAttrs.nativeBuildInputs
+            ++
+            [pkgs.nodejs-18_x];
+        });
+        shell = "
+      export PATH=${let
+        npmlock2nix = import npmlock2nix-repo {
+          inherit pkgs;
+        };
+        pkgs = import "${nixpkgs}" {
+        config.permittedInsecurePackages = [];
+        inherit system;
+      };
+      in
+      npmlock2nix.v2.node_modules
+        {
+          src = (let
+    lib = pkgs.lib;
+    lastSafe = list :
+      if lib.lists.length list == 0
+        then null
+        else lib.lists.last list;
+  in
+  builtins.path
+    {
+      path = ./.;
+      name = "source";
+      filter = path: type:
+        let
+          fileName = lastSafe (lib.strings.splitString "/" path);
+        in
+         fileName != "flake.nix" &&
+         fileName != "garn.ts";
+    });
+          nodejs = pkgs.nodejs-18_x;
+        }}/bin:\$PATH
+      vite preview
+    ";
+        buildPath = pkgs.runCommand "build-inputs-path" {
+          inherit (dev) buildInputs nativeBuildInputs;
+        } "echo $PATH > $out";
+      in
+      pkgs.writeScript "shell-env"  ''
+        #!${pkgs.bash}/bin/bash
+        export PATH=$(cat ${buildPath}):$PATH
+        ${dev.shellHook}
+        ${shell} "$@"
+      ''}";
+          };
           "viteVanilla/deployToGhPages" = {
             "type" = "app";
             "program" = "${let
@@ -266,14 +406,46 @@
     ${"
       set -eu
 
-      export PATH=node_modules/.bin:\$PATH
-      ${pkgs.which}/bin/which vite 2> /dev/null ||         (echo vite is not a dependency of the project, maybe run:
-         echo '  npm install --save-dev vite'
-          exit 1)
+      export PATH=${let
+        npmlock2nix = import npmlock2nix-repo {
+          inherit pkgs;
+        };
+        pkgs = import "${nixpkgs}" {
+        config.permittedInsecurePackages = [];
+        inherit system;
+      };
+      in
+      npmlock2nix.v2.node_modules
+        {
+          src = (let
+    lib = pkgs.lib;
+    lastSafe = list :
+      if lib.lists.length list == 0
+        then null
+        else lib.lists.last list;
+  in
+  builtins.path
+    {
+      path = ./.;
+      name = "source";
+      filter = path: type:
+        let
+          fileName = lastSafe (lib.strings.splitString "/" path);
+        in
+         fileName != "flake.nix" &&
+         fileName != "garn.ts";
+    });
+          nodejs = pkgs.nodejs-18_x;
+        }}/bin:\$PATH
+      if ! ${pkgs.which}/bin/which vite 2> /dev/null; then
+        echo 'vite is not a dependency of the project, maybe run:'
+        echo '  npm install --save-dev vite'
+        exit 1
+      fi
       vite build --outDir \$out
     "}
   "} \"\$TMP_DST\"
-        chmod +w \"\$TMP_DST\"
+        chmod -R +w \"\$TMP_DST\"
         mv \"\$TMP_SRC/.git\" \"\$TMP_DST\"
         git -C \"\$TMP_DST\" add .
         git -C \"\$TMP_DST\" commit -m \"Deploy \$VERSION_NAME to gh-pages\"
@@ -281,48 +453,6 @@
         >&2 echo -e 'Created commit to \"gh-pages\" branch, but it has not been pushed yet'
         >&2 echo -e 'Run ${"\\e[0;1m"}git push <remote> gh-pages:gh-pages${"\\e[0m"} to deploy'
       ";
-        buildPath = pkgs.runCommand "build-inputs-path" {
-          inherit (dev) buildInputs nativeBuildInputs;
-        } "echo $PATH > $out";
-      in
-      pkgs.writeScript "shell-env"  ''
-        #!${pkgs.bash}/bin/bash
-        export PATH=$(cat ${buildPath}):$PATH
-        ${dev.shellHook}
-        ${shell} "$@"
-      ''}";
-          };
-          "viteVanilla/dev" = {
-            "type" = "app";
-            "program" = "${let
-        dev = (pkgs.mkShell {}).overrideAttrs (finalAttrs: previousAttrs: {
-          nativeBuildInputs =
-            previousAttrs.nativeBuildInputs
-            ++
-            [pkgs.nodejs-18_x];
-        });
-        shell = "npm run dev";
-        buildPath = pkgs.runCommand "build-inputs-path" {
-          inherit (dev) buildInputs nativeBuildInputs;
-        } "echo $PATH > $out";
-      in
-      pkgs.writeScript "shell-env"  ''
-        #!${pkgs.bash}/bin/bash
-        export PATH=$(cat ${buildPath}):$PATH
-        ${dev.shellHook}
-        ${shell} "$@"
-      ''}";
-          };
-          "viteVanilla/preview" = {
-            "type" = "app";
-            "program" = "${let
-        dev = (pkgs.mkShell {}).overrideAttrs (finalAttrs: previousAttrs: {
-          nativeBuildInputs =
-            previousAttrs.nativeBuildInputs
-            ++
-            [pkgs.nodejs-18_x];
-        });
-        shell = "npm run preview";
         buildPath = pkgs.runCommand "build-inputs-path" {
           inherit (dev) buildInputs nativeBuildInputs;
         } "echo $PATH > $out";
